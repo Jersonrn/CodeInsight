@@ -24,7 +24,7 @@ def fix_config(config: dict) -> dict:
 
 
 @pynvim.plugin
-class Plugin(object):
+class CodeInsight(object):
     def __init__(self, nvim) -> None:
         self.nvim = nvim
 
