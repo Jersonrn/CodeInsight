@@ -54,23 +54,42 @@ class CodeInsight(object):
         else: self.nvim.command(f"echo 'No definitions found'")
 
     @pynvim.command('NextDefinition', nargs='*') # type: ignore
-    def next_definition(self, args):
+    def next_definition(self, args) -> None:
         win_id =  args[0] if args else self.nvim.call("win_getid")
-
-        definitions = self.windows[win_id]['definitions']
 
         try: definitions = self.windows[win_id]['definitions']
         except: self.nvim.command(f"echo 'No definitions found for {win_id}'")
         else:
             if len(definitions) > 1:
                 current_def = self.windows[win_id]['current_def']
-                next_def = 0 if current_def >= len(definitions) else current_def + 1
+                next_def = 0 if current_def >= len(definitions)- 1 else current_def + 1
                 pos_def = (definitions[next_def]['range']['start']['line'] + 1,
                            definitions[next_def]['range']['start']['character'])
                 uri = definitions[next_def]['uri']
                 buffer = self.nvim.exec_lua('return vim.uri_to_bufnr(...)', uri)
                 self.nvim.call('nvim_win_set_buf', win_id, buffer)
                 self.nvim.call('nvim_win_set_cursor', win_id, pos_def)
+                self.windows[win_id]['current_def'] = next_def
+
+            else: self.nvim.command("echo 'No more definitions found'")
+
+    @pynvim.command('PrevDefinition', nargs='*') # type: ignore
+    def previous_definition(self, args) -> None:
+        win_id =  args[0] if args else self.nvim.call("win_getid")
+
+        try: definitions = self.windows[win_id]['definitions']
+        except: self.nvim.command(f"echo 'No definitions found for {win_id}'")
+        else:
+            if len(definitions) > 1:
+                current_def = self.windows[win_id]['current_def']
+                prev_def = len(definitions)- 1 if current_def <= 0 else current_def - 1
+                pos_def = (definitions[prev_def]['range']['start']['line'] + 1,
+                           definitions[prev_def]['range']['start']['character'])
+                uri = definitions[prev_def]['uri']
+                buffer = self.nvim.exec_lua('return vim.uri_to_bufnr(...)', uri)
+                self.nvim.call('nvim_win_set_buf', win_id, buffer)
+                self.nvim.call('nvim_win_set_cursor', win_id, pos_def)
+                self.windows[win_id]['current_def'] = prev_def
 
             else: self.nvim.command("echo 'No more definitions found'")
 
