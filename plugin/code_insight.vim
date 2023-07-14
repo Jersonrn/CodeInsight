@@ -1,0 +1,2 @@
+autocmd WinClosed * call CodeInsightWinClosed()
+

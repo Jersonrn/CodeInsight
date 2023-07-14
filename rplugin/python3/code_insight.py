@@ -36,6 +36,11 @@ class CodeInsight(object):
         except: config = default_config
         self.config = config if type(config['focusable']) == bool else fix_config(config)
 
+    @pynvim.function('CodeInsightWinClosed', sync=True) # type: ignore
+    def win_closed(self, args) -> None:
+        window_id = args
+        self.nvim.out_write(f'Window ID {window_id} closed\n')
+
     @pynvim.command('ShowFloatDefinition') # type: ignore
     def show_float_definition(self) -> None:
         definitions = self.nvim.call('coc#rpc#request', 'definitions', [])
@@ -50,6 +55,7 @@ class CodeInsight(object):
             self.nvim.call('nvim_win_set_var',0,'is_CI_float', True)
             self.windows[win_id] = {'current_def': current_def,
                                     'definitions': definitions}
+            self.nvim.command(f"echo 'Showing definitions'")
 
         else: self.nvim.command(f"echo 'No definitions found'")
 
