@@ -1,2 +1,2 @@
-autocmd WinClosed * call CodeInsightWinClosed()
-
+" autocmd WinClosed * call CodeInsightWinClosed(win_getid())
+autocmd WinClosed * call CodeInsightWinClosed(+expand('<amatch>'))

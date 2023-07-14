@@ -38,7 +38,7 @@ class CodeInsight(object):
 
     @pynvim.function('CodeInsightWinClosed', sync=True) # type: ignore
     def win_closed(self, args) -> None:
-        window_id = args
+        window_id = args[0]
         self.nvim.out_write(f'Window ID {window_id} closed\n')
 
     @pynvim.command('ShowFloatDefinition') # type: ignore
