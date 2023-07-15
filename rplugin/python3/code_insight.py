@@ -36,10 +36,12 @@ class CodeInsight(object):
         except: config = default_config
         self.config = config if type(config['focusable']) == bool else fix_config(config)
 
-    @pynvim.function('CodeInsightWinClosed', sync=True) # type: ignore
-    def win_closed(self, args) -> None:
-        window_id = args[0]
-        self.nvim.out_write(f'Window ID {window_id} closed\n')
+    @pynvim.function('CodeInsightWinClosed', sync=True) 
+    def win_closed(self, win_id) -> None:
+        try: del self.windows[win_id[0]]
+        except: pass
+        # is_CI_float = self.nvim.call('nvim_win_get_var', win_id[0], 'is_CI_float')
+        # if is_CI_float: del self.windows[win_id[0]]
 
     @pynvim.command('ShowFloatDefinition') # type: ignore
     def show_float_definition(self) -> None:
@@ -52,10 +54,9 @@ class CodeInsight(object):
             buffer = self.nvim.exec_lua('return vim.uri_to_bufnr(...)', uri)
             win_id = self.nvim.call('nvim_open_win', buffer, 1, self.config)
             self.nvim.call('nvim_win_set_cursor', win_id, pos_def)
-            self.nvim.call('nvim_win_set_var',0,'is_CI_float', True)
+            self.nvim.call('nvim_win_set_var',win_id,'is_CI_float', True)
             self.windows[win_id] = {'current_def': current_def,
                                     'definitions': definitions}
-            self.nvim.command(f"echo 'Showing definitions'")
 
         else: self.nvim.command(f"echo 'No definitions found'")
 
