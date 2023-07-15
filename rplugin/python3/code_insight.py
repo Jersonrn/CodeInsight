@@ -10,8 +10,7 @@ default_config = {'focusable': True,
                     'anchor': 'NW',
                     'row': 1.0,
                     'col': 0.0,
-                    'zindex': 1,
-                    'border': ['❖', '═', '╗', '║', '╝', '═', '╚', '║'],
+                    'zindex': 1, 'border': ['❖', '═', '╗', '║', '╝', '═', '╚', '║'],
                     'title': [["", 'FloatTitle']],
                     'title_pos': 'left',
                     'relative': 'win'}
@@ -57,6 +56,7 @@ class CodeInsight(object):
             self.nvim.call('nvim_win_set_var',win_id,'is_CI_float', True)
             self.windows[win_id] = {'current_def': current_def,
                                     'definitions': definitions}
+            self.nvim.out_write(f'Showing [{current_def+1}/{len(definitions)}] definitions\n')
 
         else: self.nvim.command(f"echo 'No definitions found'")
 
@@ -77,6 +77,7 @@ class CodeInsight(object):
                 self.nvim.call('nvim_win_set_buf', win_id, buffer)
                 self.nvim.call('nvim_win_set_cursor', win_id, pos_def)
                 self.windows[win_id]['current_def'] = next_def
+                self.nvim.out_write(f'Showing [{next_def+1}/{len(definitions)}] definitions\n')
 
             else: self.nvim.command("echo 'No more definitions found'")
 
@@ -97,10 +98,9 @@ class CodeInsight(object):
                 self.nvim.call('nvim_win_set_buf', win_id, buffer)
                 self.nvim.call('nvim_win_set_cursor', win_id, pos_def)
                 self.windows[win_id]['current_def'] = prev_def
+                self.nvim.out_write(f'Showing [{prev_def+1}/{len(definitions)}] definitions\n')
 
             else: self.nvim.command("echo 'No more definitions found'")
 
+    def handle_CI_window(self): pass
 
-    @pynvim.command('Print', nargs='*') # type: ignore
-    def __print(self, args) -> None:
-        self.nvim.out_write(f'{args}\n')
