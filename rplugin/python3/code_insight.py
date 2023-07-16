@@ -55,6 +55,12 @@ class CodeInsight(object):
         if definitions: self.open_float_window( definitions )
         else: self.nvim.command(f"echo 'No definitions found'")
 
+    @pynvim.command('ShowFloatReferences') # type: ignore
+    def show_float_references(self) -> None:
+        references = self.nvim.call('coc#rpc#request', 'references', [])
+        if references: self.open_float_window( references )
+        else: self.nvim.command(f"echo 'No references found'")
+
     @pynvim.command('NextDefinition', nargs='*') # type: ignore
     def next_definition(self, args) -> None:
         win_id =  args[0] if args else self.nvim.call("win_getid")
@@ -96,12 +102,6 @@ class CodeInsight(object):
                 self.nvim.out_write(f'Showing [{prev_def+1}/{len(definitions)}] definitions\n')
 
             else: self.nvim.command("echo 'No more definitions found'")
-
-    @pynvim.command('ShowFloatReferences') # type: ignore
-    def show_float_references(self) -> None:
-        references = self.nvim.call('coc#rpc#request', 'references', [])
-        if references: self.open_float_window( references )
-        else: self.nvim.command(f"echo 'No references found'")
 
     def handle_CI_window(self): pass
 
