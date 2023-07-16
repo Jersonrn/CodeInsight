@@ -45,19 +45,13 @@ class CodeInsight(object):
     @pynvim.command('ShowFloatDefinition') # type: ignore
     def show_float_definitions(self) -> None:
         definitions = self.nvim.call('coc#rpc#request', 'definitions', [])
-        if definitions:
-            current_def: int = 0
-            pos_def: tuple = (definitions[current_def]['range']['start']['line'] + 1,
-                              definitions[current_def]['range']['start']['character'])
-            uri = definitions[current_def]['uri']
-            buffer = self.nvim.exec_lua('return vim.uri_to_bufnr(...)', uri)
-            win_id = self.nvim.call('nvim_open_win', buffer, 1, self.config)
-            self.nvim.call('nvim_win_set_cursor', win_id, pos_def)
-            self.nvim.call('nvim_win_set_var',win_id,'is_CI_float', True)
-            self.windows[win_id] = {'current_def': current_def,
-                                    'definitions': definitions}
-            self.nvim.out_write(f'Showing [{current_def+1}/{len(definitions)}] definitions\n')
+        if definitions: self.open_float_window( definitions )
+        else: self.nvim.command(f"echo 'No definitions found'")
 
+    @pynvim.command('ShowFloatTypeDefinition') # type: ignore
+    def show_type_definitions(self):
+        definitions = self.nvim.call('coc#rpc#request', 'typeDefinitions', [])
+        if definitions: self.open_float_window( definitions )
         else: self.nvim.command(f"echo 'No definitions found'")
 
     @pynvim.command('NextDefinition', nargs='*') # type: ignore
@@ -102,21 +96,23 @@ class CodeInsight(object):
 
             else: self.nvim.command("echo 'No more definitions found'")
 
+    @pynvim.command('ShowFloatReferences') # type: ignore
+    def show_float_references(self) -> None:
+        references = self.nvim.call('coc#rpc#request', 'references', [])
+        # self.nvim.command(f"echo '{references}'")
+
     def handle_CI_window(self): pass
 
-    @pynvim.command('ShowFloatTypeDefinition') # type: ignore
-    def show_type_definitions(self):
-        definitions = self.nvim.call('coc#rpc#request', 'typeDefinitions', [])
-        if definitions:
-            current_def: int = 0
-            pos_def: tuple = (definitions[current_def]['range']['start']['line'] + 1,
-                              definitions[current_def]['range']['start']['character'])
-            uri = definitions[current_def]['uri']
-            buffer = self.nvim.exec_lua('return vim.uri_to_bufnr(...)', uri)
-            win_id = self.nvim.call('nvim_open_win', buffer, 1, self.config)
-            self.nvim.call('nvim_win_set_cursor', win_id, pos_def)
-            self.nvim.call('nvim_win_set_var',win_id,'is_CI_float', True)
-            self.windows[win_id] = {'current_def': current_def,
-                                    'definitions': definitions}
-            self.nvim.out_write(f'Showing [{current_def+1}/{len(definitions)}] type definitions\n')
+    def open_float_window(self, definitions: list) -> None:
+        current_def: int = 0
+        pos_def: tuple = (definitions[current_def]['range']['start']['line'] + 1,
+                          definitions[current_def]['range']['start']['character'])
+        uri = definitions[current_def]['uri']
+        buffer = self.nvim.exec_lua('return vim.uri_to_bufnr(...)', uri)
+        win_id = self.nvim.call('nvim_open_win', buffer, 1, self.config)
+        self.nvim.call('nvim_win_set_cursor', win_id, pos_def)
+        self.nvim.call('nvim_win_set_var',win_id,'is_CI_float', True)
+        self.windows[win_id] = {'current_def': current_def,
+                                'definitions': definitions}
+        self.nvim.out_write(f'Showing [{current_def+1}/{len(definitions)}] definitions\n')
 
