@@ -1,3 +1,4 @@
+import sys
 import pynvim
 
 
@@ -99,7 +100,8 @@ class CodeInsight(object):
     @pynvim.command('ShowFloatReferences') # type: ignore
     def show_float_references(self) -> None:
         references = self.nvim.call('coc#rpc#request', 'references', [])
-        # self.nvim.command(f"echo '{references}'")
+        if references: self.open_float_window( references )
+        else: self.nvim.command(f"echo 'No references found'")
 
     def handle_CI_window(self): pass
 
@@ -116,3 +118,8 @@ class CodeInsight(object):
                                 'definitions': definitions}
         self.nvim.out_write(f'Showing [{current_def+1}/{len(definitions)}] definitions\n')
 
+    def write_in_log(self, args):
+        with open("log.txt", "w") as file_log:
+            sys.stdout = file_log
+            print(args)
+            sys.stdout = sys.__stdout__
