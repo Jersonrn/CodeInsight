@@ -123,4 +123,10 @@ class CodeInsight(object):
             print(args)
             sys.stdout = sys.__stdout__
 
+    @pynvim.command('SetConfig', nargs='*') # type: ignore
+    def set_config(self, args) -> None:
+        win_id = args[0] if args else self.nvim.api.get_current_win()
+        opts = self.nvim.api.win_get_config(win_id)
+        opts['anchor'] = 'SE'
+        self.nvim.api.win_set_config(win_id, opts)
 
