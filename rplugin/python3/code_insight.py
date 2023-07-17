@@ -1,22 +1,29 @@
 import sys
+import math
 import pynvim
 
 
-default_config = {  'focusable': True,
-                    'external': False,
-                    'width': 100,
-                    'height': 20,
-                    # 'win': 1000,
-                    'bufpos': [10, 10],
-                    'anchor': 'SE',
-                    'row': 1.0,
-                    'col': 0.0,
-                    'zindex': 1,
-                    'border': ['❖', '═', '╗', '║', '⇲', '═', '╚', '║'],
-                    'title': [["CodeInsight", 'FloatTitle']],
-                    'title_pos': 'left',
-                    'relative': 'win'
+def get_default_config(nvim) -> dict:
+    columns: int = nvim.api.get_option('columns')
+    lines: int = nvim.api.get_option('lines')
+
+    width: float = math.floor(columns * 0.6)
+    height: float = math.floor(lines * 0.5)
+    
+    opts: dict = {'relative': 'win',
+                  'anchor': 'NW',
+                  'width': width,
+                  'height': height,
+                  'row': math.floor((lines - height) * 0.5),
+                  'col': math.floor((columns - width) * 0.5),
+                  'focusable': True,
+                  'external': False,
+                  'zindex': 1,
+                  'border': ['❖', '═', '╗', '║', '⇲', '═', '╚', '║'],
+                  'title': [["CodeInsight", 'FloatTitle']],
+                  'title_pos': 'left',
                   }
+    return opts
 
 def fix_config(config: dict) -> dict:
     for key in config.keys():
@@ -35,7 +42,7 @@ class CodeInsight(object):
     @pynvim.autocmd('VimEnter', sync=True)
     def vim_enter(self) -> None:
         try: config = self.nvim.eval('g:code_insight_config')
-        except: config = default_config
+        except: config = get_default_config(self.nvim)
         self.config = config if type(config['focusable']) == bool else fix_config(config)
 
     @pynvim.function('CodeInsightWinClosed', sync=True) 
@@ -92,11 +99,12 @@ class CodeInsight(object):
                                 'definitions': definitions}
         self.nvim.out_write(f'Showing [{current_def+1}/{len(definitions)}] definitions\n')
 
-    def handle_next_prev(self, action:str, win_id: int, definitions: list) -> None:
-        if len(definitions)>1:
+    def handle_next_prev(self, action: str, win_id: int, definitions: list) -> None:
+        len_def = len(definitions)
+        if len_def > 1:
             curr_def = self.windows[win_id]['current_def']
-            if   action == "Next": target = 0 if curr_def >= len(definitions) -1 else curr_def +1
-            elif action == "Prev": target = len(definitions)- 1 if curr_def <= 0 else curr_def -1
+            if   action == "Next": target = 0 if curr_def >= len_def -1 else curr_def +1
+            elif action == "Prev": target = len_def -1 if curr_def <= 0 else curr_def -1
             else: return
             pos_def = (definitions[target]['range']['start']['line'] + 1,
                        definitions[target]['range']['start']['character'])
@@ -105,7 +113,7 @@ class CodeInsight(object):
             self.nvim.call('nvim_win_set_buf', win_id, buffer)
             self.nvim.call('nvim_win_set_cursor', win_id, pos_def)
             self.windows[win_id]['current_def'] = target
-            self.nvim.out_write(f'Showing [{target+1}/{len(definitions)}] definitions\n')
+            self.nvim.out_write(f'Showing [{target+1}/{len_def}] definitions\n')
 
         else: self.nvim.command("echo 'No more definitions found'")
 
@@ -114,3 +122,5 @@ class CodeInsight(object):
             sys.stdout = file_log
             print(args)
             sys.stdout = sys.__stdout__
+
+
