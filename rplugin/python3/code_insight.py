@@ -2,19 +2,21 @@ import sys
 import pynvim
 
 
-default_config = {'focusable': True,
+default_config = {  'focusable': True,
                     'external': False,
-                    'width': 70,
+                    'width': 100,
                     'height': 20,
-                    'win': 1000,
+                    # 'win': 1000,
                     'bufpos': [10, 10],
-                    'anchor': 'NW',
+                    'anchor': 'SE',
                     'row': 1.0,
                     'col': 0.0,
-                    'zindex': 1, 'border': ['❖', '═', '╗', '║', '╝', '═', '╚', '║'],
-                    'title': [["", 'FloatTitle']],
+                    'zindex': 1,
+                    'border': ['❖', '═', '╗', '║', '⇲', '═', '╚', '║'],
+                    'title': [["CodeInsight", 'FloatTitle']],
                     'title_pos': 'left',
-                    'relative': 'win'}
+                    'relative': 'win'
+                  }
 
 def fix_config(config: dict) -> dict:
     for key in config.keys():
@@ -67,20 +69,7 @@ class CodeInsight(object):
 
         try: definitions = self.windows[win_id]['definitions']
         except: self.nvim.command(f"echo 'No definitions found for {win_id}'")
-        else:
-            if len(definitions) > 1:
-                current_def = self.windows[win_id]['current_def']
-                next_def = 0 if current_def >= len(definitions)- 1 else current_def + 1
-                pos_def = (definitions[next_def]['range']['start']['line'] + 1,
-                           definitions[next_def]['range']['start']['character'])
-                uri = definitions[next_def]['uri']
-                buffer = self.nvim.exec_lua('return vim.uri_to_bufnr(...)', uri)
-                self.nvim.call('nvim_win_set_buf', win_id, buffer)
-                self.nvim.call('nvim_win_set_cursor', win_id, pos_def)
-                self.windows[win_id]['current_def'] = next_def
-                self.nvim.out_write(f'Showing [{next_def+1}/{len(definitions)}] definitions\n')
-
-            else: self.nvim.command("echo 'No more definitions found'")
+        else: self.handle_next_prev('Next', win_id, definitions)
 
     @pynvim.command('PrevDefinition', nargs='*') # type: ignore
     def previous_definition(self, args) -> None:
@@ -88,22 +77,7 @@ class CodeInsight(object):
 
         try: definitions = self.windows[win_id]['definitions']
         except: self.nvim.command(f"echo 'No definitions found for {win_id}'")
-        else:
-            if len(definitions) > 1:
-                current_def = self.windows[win_id]['current_def']
-                prev_def = len(definitions)- 1 if current_def <= 0 else current_def - 1
-                pos_def = (definitions[prev_def]['range']['start']['line'] + 1,
-                           definitions[prev_def]['range']['start']['character'])
-                uri = definitions[prev_def]['uri']
-                buffer = self.nvim.exec_lua('return vim.uri_to_bufnr(...)', uri)
-                self.nvim.call('nvim_win_set_buf', win_id, buffer)
-                self.nvim.call('nvim_win_set_cursor', win_id, pos_def)
-                self.windows[win_id]['current_def'] = prev_def
-                self.nvim.out_write(f'Showing [{prev_def+1}/{len(definitions)}] definitions\n')
-
-            else: self.nvim.command("echo 'No more definitions found'")
-
-    def handle_CI_window(self): pass
+        else: self.handle_next_prev('Prev', win_id, definitions)
 
     def open_float_window(self, definitions: list) -> None:
         current_def: int = 0
@@ -117,6 +91,23 @@ class CodeInsight(object):
         self.windows[win_id] = {'current_def': current_def,
                                 'definitions': definitions}
         self.nvim.out_write(f'Showing [{current_def+1}/{len(definitions)}] definitions\n')
+
+    def handle_next_prev(self, action:str, win_id: int, definitions: list) -> None:
+        if len(definitions)>1:
+            curr_def = self.windows[win_id]['current_def']
+            if   action == "Next": target = 0 if curr_def >= len(definitions) -1 else curr_def +1
+            elif action == "Prev": target = len(definitions)- 1 if curr_def <= 0 else curr_def -1
+            else: return
+            pos_def = (definitions[target]['range']['start']['line'] + 1,
+                       definitions[target]['range']['start']['character'])
+            uri = definitions[target]['uri']
+            buffer = self.nvim.exec_lua('return vim.uri_to_bufnr(...)', uri)
+            self.nvim.call('nvim_win_set_buf', win_id, buffer)
+            self.nvim.call('nvim_win_set_cursor', win_id, pos_def)
+            self.windows[win_id]['current_def'] = target
+            self.nvim.out_write(f'Showing [{target+1}/{len(definitions)}] definitions\n')
+
+        else: self.nvim.command("echo 'No more definitions found'")
 
     def write_in_log(self, args):
         with open("log.txt", "w") as file_log:
