@@ -48,7 +48,7 @@ class CodeInsight(object):
     @pynvim.function('CodeInsightWinClosed', sync=True) 
     def win_closed(self, win_id) -> None:
         try: del self.windows[win_id[0]]
-        except: pass
+        except: return
         # is_CI_float = self.nvim.call('nvim_win_get_var', win_id[0], 'is_CI_float')
         # if is_CI_float: del self.windows[win_id[0]]
 
@@ -117,16 +117,29 @@ class CodeInsight(object):
 
         else: self.nvim.command("echo 'No more definitions found'")
 
-    def write_in_log(self, args):
+    def write_in_log(self, *args):
         with open("log.txt", "w") as file_log:
             sys.stdout = file_log
             print(args)
             sys.stdout = sys.__stdout__
 
-    @pynvim.command('SetConfig', nargs='*') # type: ignore
-    def set_config(self, args) -> None:
-        win_id = args[0] if args else self.nvim.api.get_current_win()
-        opts = self.nvim.api.win_get_config(win_id)
-        opts['anchor'] = 'SE'
-        self.nvim.api.win_set_config(win_id, opts)
+    @pynvim.command('MoveFloatWindow', nargs='*') # type: ignore
+    def move_float_window(self, args) -> None:
+        direction: str | None = args[0][1:-1] if args else None
+
+        if direction is not None:
+            win_id: int = self.nvim.api.get_current_win()
+            opts: dict = self.nvim.api.win_get_config(win_id)
+            is_floating: bool = False if opts and opts["relative"] == '' else True
+
+            if is_floating:
+                if   direction == "h": new_anchor: dict = {'NE':'NW', 'SE':'SW'}
+                elif direction == 'j': new_anchor: dict = {'NW':'SW', 'NE':'SE'}
+                elif direction == 'k': new_anchor: dict = {'SW':'NW', 'SE':'NE'}
+                elif direction == 'l': new_anchor: dict = {'NW':'NE', 'SW':'SE'}
+                else: return
+
+                try: opts['anchor'] = new_anchor[opts['anchor']]
+                except: return
+                else: self.nvim.api.win_set_config(win_id, opts)
 
