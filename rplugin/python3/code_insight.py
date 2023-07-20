@@ -1,3 +1,5 @@
+import os
+from os.path import lexists
 import sys
 import math
 import pynvim
@@ -87,17 +89,20 @@ class CodeInsight(object):
         else: self.handle_next_prev('Prev', win_id, definitions)
 
     def open_float_window(self, definitions: list) -> None:
-        current_def: int = 0
-        pos_def: tuple = (definitions[current_def]['range']['start']['line'] + 1,
-                          definitions[current_def]['range']['start']['character'])
-        uri = definitions[current_def]['uri']
+        curr_def: int = 0
+        pos_def: tuple = (definitions[curr_def]['range']['start']['line'] + 1,
+                          definitions[curr_def]['range']['start']['character'])
+        uri = definitions[curr_def]['uri']
         buffer = self.nvim.exec_lua('return vim.uri_to_bufnr(...)', uri)
-        win_id = self.nvim.call('nvim_open_win', buffer, 1, self.config)
+        opts = self.config
+        opts['title'][0][0] = f"{os.path.basename(uri)}[{curr_def +1}/{len(definitions)}]"
+
+        win_id = self.nvim.call('nvim_open_win', buffer, 1, opts)
         self.nvim.call('nvim_win_set_cursor', win_id, pos_def)
         self.nvim.call('nvim_win_set_var',win_id,'is_CI_float', True)
-        self.windows[win_id] = {'current_def': current_def,
+        self.windows[win_id] = {'current_def': curr_def,
                                 'definitions': definitions}
-        self.nvim.out_write(f'Showing [{current_def+1}/{len(definitions)}] definitions\n')
+        self.nvim.out_write(f'Showing [{curr_def+1}/{len(definitions)}] definitions\n')
 
     def handle_next_prev(self, action: str, win_id: int, definitions: list) -> None:
         len_def = len(definitions)
@@ -113,6 +118,11 @@ class CodeInsight(object):
             self.nvim.call('nvim_win_set_buf', win_id, buffer)
             self.nvim.call('nvim_win_set_cursor', win_id, pos_def)
             self.windows[win_id]['current_def'] = target
+
+            opts: dict = self.nvim.api.win_get_config(win_id)
+            opts['title'][0][0] = f"{os.path.basename(uri)}[{target +1}/{len_def}]"
+            self.nvim.api.win_set_config(win_id, opts)
+
             self.nvim.out_write(f'Showing [{target+1}/{len_def}] definitions\n')
 
         else: self.nvim.command("echo 'No more definitions found'")
