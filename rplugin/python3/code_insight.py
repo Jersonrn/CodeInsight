@@ -1,23 +1,22 @@
 import os
-from os.path import lexists
 import sys
-import math
 import pynvim
 
 
 def get_default_config(nvim) -> dict:
     columns: int = nvim.api.get_option('columns')
     lines: int = nvim.api.get_option('lines')
+    cmd_height = nvim.api.get_option('cmdheight')
 
-    width: float = math.floor(columns * 0.6)
-    height: float = math.floor(lines * 0.5)
+    width: float = int((columns * 0.5)//1)
+    height: float = int((lines * 0.5)//1)
     
     opts: dict = {'relative': 'win',
                   'anchor': 'NW',
                   'width': width,
                   'height': height,
-                  'row': math.floor((lines - height) * 0.5),
-                  'col': math.floor((columns - width) * 0.5),
+                  'row': 0,
+                  'col': int((columns - width)//1.0),
                   'focusable': True,
                   'external': False,
                   'zindex': 1,
@@ -25,7 +24,9 @@ def get_default_config(nvim) -> dict:
                   'title': [["CodeInsight", 'FloatTitle']],
                   'title_pos': 'left',
                   }
-    return opts
+    config: dict = {"pos":"top-right",
+                    "opts":opts}
+    return config
 
 def fix_config(config: dict) -> dict:
     for key in config.keys():
@@ -45,14 +46,12 @@ class CodeInsight(object):
     def vim_enter(self) -> None:
         try: config = self.nvim.eval('g:code_insight_config')
         except: config = get_default_config(self.nvim)
-        self.config = config if type(config['focusable']) == bool else fix_config(config)
+        self.config = config if type(config['opts']['focusable']) == bool else fix_config(config)
 
     @pynvim.function('CodeInsightWinClosed', sync=True) 
     def win_closed(self, win_id) -> None:
         try: del self.windows[win_id[0]]
         except: return
-        # is_CI_float = self.nvim.call('nvim_win_get_var', win_id[0], 'is_CI_float')
-        # if is_CI_float: del self.windows[win_id[0]]
 
     @pynvim.command('ShowFloatDefinition') # type: ignore
     def show_float_definitions(self) -> None:
@@ -94,12 +93,12 @@ class CodeInsight(object):
                           definitions[curr_def]['range']['start']['character'])
         uri = definitions[curr_def]['uri']
         buffer = self.nvim.exec_lua('return vim.uri_to_bufnr(...)', uri)
-        opts = self.config
+        opts = self.config['opts']
         opts['title'][0][0] = f"{os.path.basename(uri)}[{curr_def +1}/{len(definitions)}]"
 
         win_id = self.nvim.call('nvim_open_win', buffer, 1, opts)
         self.nvim.call('nvim_win_set_cursor', win_id, pos_def)
-        self.nvim.call('nvim_win_set_var',win_id,'is_CI_float', True)
+        self.nvim.call('nvim_win_set_var',win_id,'pos', self.config['pos'])
         self.windows[win_id] = {'current_def': curr_def,
                                 'definitions': definitions}
         self.nvim.out_write(f'Showing [{curr_def+1}/{len(definitions)}] definitions\n')
@@ -133,8 +132,8 @@ class CodeInsight(object):
             print(args)
             sys.stdout = sys.__stdout__
 
-    @pynvim.command('MoveFloatWindow', nargs='*') # type: ignore
-    def move_float_window(self, args) -> None:
+    @pynvim.command('OldMoveFloatWindow', nargs='*') # type: ignore
+    def old_move_float_window(self, args) -> None:
         direction: str | None = args[0][1:-1] if args else None
 
         if direction is not None:
@@ -152,4 +151,49 @@ class CodeInsight(object):
                 try: opts['anchor'] = new_anchor[opts['anchor']]
                 except: return
                 else: self.nvim.api.win_set_config(win_id, opts)
+
+    @pynvim.command('MoveFloatWindow', nargs='*') # type: ignore
+    def move_float_window(self, args) -> None:
+        direction: str | None = args[0][1:-1] if args else None
+        win_id: int = self.nvim.api.get_current_win()
+        opts: dict = self.nvim.api.win_get_config(win_id)
+        width, height = opts['width'], opts['height']
+        is_floating: bool = False if opts and opts["relative"] == '' else True
+
+        if direction is not None and is_floating:
+            col, lines = self.nvim.eval('&columns'), self.nvim.eval('&lines')
+            cmd_height = self.nvim.eval('&cmdheight')
+            cell_coords = {
+                    'top-left': (0,0),    'top': (1,0),    'top-right': (2,0),
+                    'left': (0,1),        'center': (1,1), 'right': (2,1),
+                    'bottom-left': (0,2), 'bottom': (1,2), 'bottom-right': (2,2)}
+
+            try: position: str = self.nvim.call('nvim_win_get_var', win_id, 'pos')
+            except: position: str = "center"
+            pos: tuple = cell_coords[position]
+
+            x, y = (0, 1)
+            if   direction == "h": pos = (pos[x]-1 if pos[x] > 0 else 0, pos[y])
+            elif direction == "j": pos = (pos[x], pos[y]+1 if pos[y] < 2 else 2)
+            elif direction == "k": pos = (pos[x], pos[y]-1 if pos[y] > 0 else 0)
+            elif direction == "l": pos = (pos[x]+1 if pos[x] < 2 else 2, pos[y])
+
+            coords_settings: dict = {
+                (0,0):{'row':0, 'col':0},
+                (1,0):{'row':0, 'col':(col - width) * 0.5},
+                (2,0):{'row':0, 'col':col - width},
+
+                (0,1):{'row': (lines - height - cmd_height - 1) * 0.5, 'col': 0},
+                (1,1):{'row': (lines - height - cmd_height - 1) * 0.5, 'col': (col - width) * 0.5},
+                (2,1):{'row': (lines - height - cmd_height - 1) * 0.5, 'col': col - width},
+
+                (0,2):{'row': lines - height - cmd_height - 1, 'col': 0},
+                (1,2):{'row': lines - height - cmd_height - 1, 'col': (col - width) * 0.5},
+                (2,2):{'row': lines - height - cmd_height - 1, 'col': col - width},
+                }
+            opts['row'] = int(coords_settings[pos]['row'] // 1)
+            opts['col'] = int(coords_settings[pos]['col'] // 1)
+            self.nvim.api.win_set_config(win_id, opts)
+            position = [i for i in cell_coords if cell_coords[i] == pos][0]
+            self.nvim.call('nvim_win_set_var', win_id, 'pos', position)
 
