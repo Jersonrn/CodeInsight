@@ -152,9 +152,9 @@ class CodeInsight(object):
                 except: return
                 else: self.nvim.api.win_set_config(win_id, opts)
 
-    @pynvim.command('MoveFloatWindow', nargs='*') # type: ignore
-    def move_float_window(self, args) -> None:
-        direction: str | None = args[0][1:-1] if args else None
+    @pynvim.command('MoveFloatWindow', nargs=1) # type: ignore
+    def move_float_window(self, dir) -> None:
+        direction: str | None = dir[0][1:-1] if dir else None
         win_id: int = self.nvim.api.get_current_win()
         opts: dict = self.nvim.api.win_get_config(win_id)
         width, height = opts['width'], opts['height']
@@ -173,10 +173,12 @@ class CodeInsight(object):
             pos: tuple = cell_coords[position]
 
             x, y = (0, 1)
-            if   direction == "h": pos = (pos[x]-1 if pos[x] > 0 else 0, pos[y])
-            elif direction == "j": pos = (pos[x], pos[y]+1 if pos[y] < 2 else 2)
-            elif direction == "k": pos = (pos[x], pos[y]-1 if pos[y] > 0 else 0)
-            elif direction == "l": pos = (pos[x]+1 if pos[x] < 2 else 2, pos[y])
+            pos = (
+                (pos[x] - 1 if pos[x] > 0 else 0, pos[y]) if direction == "h" else
+                (pos[x], pos[y] + 1 if pos[y] < 2 else 2) if direction == "j" else
+                (pos[x], pos[y] - 1 if pos[y] > 0 else 0) if direction == "k" else
+                (pos[x] + 1 if pos[x] < 2 else 2, pos[y]) if direction == "l" else
+                (pos[x], pos[y]) )
 
             coords_settings: dict = {
                 (0,0):{'row':0, 'col':0},
