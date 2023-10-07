@@ -198,4 +198,3 @@ class CodeInsight(object):
             self.nvim.api.win_set_config(win_id, opts)
             position = [i for i in cell_coords if cell_coords[i] == pos][0]
             self.nvim.call('nvim_win_set_var', win_id, 'pos', position)
-
